@@ -6,7 +6,7 @@ export https_proxy=myproxy-server:7890
 curl -OsSL https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.15/cri-dockerd-0.3.15.amd64.tgz
 curl -sSL -o cri-dockerd-v0.3.15.zip https://github.com/Mirantis/cri-dockerd/archive/refs/tags/v0.3.15.zip
 tar zxf cri-dockerd-0.3.15.amd64.tgz
-unzip -q cri-dockerd-v0.3.15.zip
+unzip -qo cri-dockerd-v0.3.15.zip
 
 # install cri-docker service and start it
 install -v -o root -g root -m 0755 cri-dockerd/cri-dockerd /usr/bin/cri-dockerd

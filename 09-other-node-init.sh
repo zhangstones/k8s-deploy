@@ -10,12 +10,19 @@ ROLE=${ROLE,,}
 #         kubeadm token create --print-join-command
 # to create a new certificate key you must use 'kubeadm init phase upload-certs --upload-certs'
 
-if [ "$ROLE" != "master" ]; then
-	kubeadm join k8s-server.local:6443 --cri-socket unix:///var/run/cri-dockerd.sock --token nefx8k.k9cw8d5kasben9dg \
-        	--discovery-token-ca-cert-hash sha256:26f69a8eaf25dedfebc905e257bbb2cca63d81fa4638ebcebc4612f57b8bb896 \
-        	--control-plane --certificate-key 13e15ab838333753016450278b426a21eb276d96c5059c7a01d8b54407f36706
-else
 
-	kubeadm join k8s-server.local:6443 --cri-socket unix:///var/run/cri-dockerd.sock --token nefx8k.k9cw8d5kasben9dg \
-		--discovery-token-ca-cert-hash sha256:26f69a8eaf25dedfebc905e257bbb2cca63d81fa4638ebcebc4612f57b8bb896
+TOKEN=$(cat kubeadm-result.log | awk '/kubeadm join.*--token/{print $5; exit}')
+HASH=$(cat kubeadm-result.log | awk '/--discovery-token-ca-cert-hash/{print $2; exit}')
+KEY=$(cat kubeadm-result.log | awk '/--certificate-key/{print $3; exit}')
+
+
+if [ "$ROLE" == "master" ]; then
+	kubeadm join k8s-server.local:6443 --cri-socket unix:///var/run/cri-dockerd.sock --token "$TOKEN" \
+		--discovery-token-ca-cert-hash "$HASH" --control-plane --certificate-key "$KEY"
+elif [ "$ROLE" == "worker" ]; then
+	kubeadm join k8s-server.local:6443 --cri-socket unix:///var/run/cri-dockerd.sock --token "$TOKEN" \
+		--discovery-token-ca-cert-hash "$HASH"
+else
+	echo "invalid k8s node role: $ROLE"
+	exit 1
 fi

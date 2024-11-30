@@ -39,7 +39,7 @@ rm -f /etc/systemd/system/kubelet.service.d/20-standalone.conf
 systemctl daemon-reload && systemctl restart kubelet
 
 # init first control-plate node. pay attention to init logs, there is guidelines for later node joins
-kubeadm init --config kubeadm-config.yaml --upload-certs --ignore-preflight-errors=NumCPU
+kubeadm init --config kubeadm-config.yaml --upload-certs --ignore-preflight-errors=NumCPU --log-file=kubeadm-result.log
 
 # increase etcd timeouts
 sed -i '/- --etcd-servers/a\    - --etcd-healthcheck-timeout=20s' /etc/kubernetes/manifests/kube-apiserver.yaml

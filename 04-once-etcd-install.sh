@@ -116,10 +116,11 @@ containerRuntimeEndpoint: unix:///var/run/cri-dockerd.sock
 staticPodPath: /etc/kubernetes/manifests
 EOF
 
+mkdir -p /etc/systemd/system/kubelet.service.d
 cat > /etc/systemd/system/kubelet.service.d/20-standalone.conf <<EOF
 [Service]
 ExecStart=
-ExecStart=/usr/bin/kubelet --config=/var/lib/kubelet/standalone.yaml --register-node=false
+ExecStart=/usr/bin/kubelet --config=/var/lib/kubelet/standalone.yaml --register-node=false --pod-infra-container-image=registry.local/pause:3.9
 Restart=always
 EOF
 
@@ -127,9 +128,9 @@ systemctl daemon-reload && systemctl restart kubelet
 
 # wait for etcd to be ready
 while :; do
-	ETCD2_ID=$(crictl ps --name etcd2 -q)
-	status=$(crictl exec "$ETCD2_ID" etcdctl --cert /etc/kubernetes/pki/etcd/peer.crt --key /etc/kubernetes/pki/etcd/peer.key \
-		--cacert /etc/kubernetes/pki/etcd/ca.crt --endpoints https://${HOST0}:2379 endpoint health)
+	ETCD_ID=$(crictl ps --name etcd -q | head -1)
+	status=$(crictl exec "$ETCD_ID" etcdctl --cert /etc/kubernetes/pki/etcd/peer.crt --key /etc/kubernetes/pki/etcd/peer.key \
+		--cacert /etc/kubernetes/pki/etcd/ca.crt --endpoints https://${HOST0}:2379 endpoint health || true)
 	if echo "$status" | grep -q "is healthy"; then
 		echo "etcd is ready!"
 		break
