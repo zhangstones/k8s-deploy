@@ -2,9 +2,7 @@
 
 set -e
 
-# params
-TIGERA_VER=v1.36.2
-CALICO_VER=v3.29.1
+. 00-kubeadm-env.sh
 
 # pull and push calico images to local docker registry for future use
 CALICO_IMAGES=(
@@ -23,7 +21,10 @@ CALICO_IMAGES=(
 for image in "${CALICO_IMAGES[@]}"; do 
 	new_image=${image/docker.io/registry.local}
 	new_image=${new_image/quay.io/registry.local}
+	docker pull $image
 	docker tag $image $new_image
 	docker push $new_image
 done
+
+echo "[Step $(basename $0 | grep -Eo '^[0-9]+')] calico images pulled successfully!"
 

@@ -2,11 +2,10 @@
 
 set -e
 
+. 00-kubeadm-env.sh
+
 # params
 METRICS_VER=v0.7.2
-
-export https_proxy=myproxy-server:7890
-export no_proxy=localhost,127.0.0.1,registry.local,k8s-server.local
 
 # pull and push metrics-server images to local docker registry
 docker pull registry.k8s.io/metrics-server/metrics-server:${METRICS_VER}
@@ -24,3 +23,6 @@ helm upgrade --install metrics-server metrics-server/metrics-server --version 3.
 	-f metrics-values.yaml
 
 rm -f metrics-values.yaml
+
+echo "[Step $(basename $0 | grep -Eo '^[0-9]+')] metrics server installed successfully!"
+

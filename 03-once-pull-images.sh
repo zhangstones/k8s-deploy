@@ -2,12 +2,14 @@
 
 set -e
 
+. 00-kubeadm-env.sh
+
 # CAUTION: need to setup https_proxy for docker and support insecure-registries
 
 kubeadm config images list > images-list.txt
 
 # pull and push k8s images to local docker registry for future use
-kubeadm config images pull --cri-socket unix:///var/run/cri-dockerd.sock
+kubeadm config images pull --kubernetes-version=$K8S_VER --cri-socket "$CTR_RUNTIME"
 
 while read tag; do
 	new_tag=${tag/\/coredns/}
@@ -17,3 +19,6 @@ while read tag; do
 done < images-list.txt
 
 rm -f images-list.txt
+
+echo "[Step $(basename $0 | grep -Eo '^[0-9]+')] k8s component images pulled successfully!"
+

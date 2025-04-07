@@ -2,10 +2,17 @@
 
 set -e
 
+. 00-kubeadm-env.sh
+
 # params
-export HOST0=10.0.2.205
-export HOST1=$HOST0
-export HOST2=$HOST0
+export HOST0=${1:-${ETCD_NODE01}}
+export HOST1=${2:-${ETCD_NODE02}}
+export HOST2=${3:-${ETCD_NODE03}}
+
+if [ "$HOST0" == "" -a $# -lt 1 ]; then
+	echo "Usage: $0 [etcd-host01] [etcd-host02] [etcd-host03]"
+	exit 1
+fi
 
 export NAME0="etcd-node0"
 export NAME1="etcd-node1"
@@ -13,9 +20,25 @@ export NAME2="etcd-node2"
 
 HOSTS=(${HOST0} ${HOST1} ${HOST2})
 NAMES=(${NAME0} ${NAME1} ${NAME2})
-PORTS1=(2379 2479 2579)
-PORTS2=(2380 2480 2580)
-PORTS3=(2381 2481 2581)
+
+if  [ "$HOST0" == "$HOST1" ]; then
+        PORTS1=(2379 2479 2579)
+        PORTS2=(2380 2480 2580)
+        PORTS3=(2381 2481 2581)
+else 
+        PORTS1=(2379 2379 2379)
+        PORTS2=(2380 2380 2380)
+        PORTS3=(2381 2381 2381)
+fi
+
+INITIAL_CLUSTER=""
+for i in "${!HOSTS[@]}"; do
+        HOST=${HOSTS[$i]}
+        NAME=${NAMES[$i]}
+	PORT2=${PORTS2[$i]}
+	INITIAL_CLUSTER="${INITIAL_CLUSTER},${NAME}=https://${HOST}:${PORT2}"
+done
+INITIAL_CLUSTER=${INITIAL_CLUSTER#,}
 
 # generate etcd static pod manifests
 for i in "${!HOSTS[@]}"; do
@@ -31,7 +54,7 @@ apiVersion: "kubeadm.k8s.io/v1beta3"
 kind: InitConfiguration
 nodeRegistration:
     name: ${NAME}
-    criSocket: unix:///var/run/cri-dockerd.sock
+    criSocket: ${CTR_RUNTIME}
 localAPIEndpoint:
     advertiseAddress: ${HOST}
 ---
@@ -44,7 +67,7 @@ etcd:
         peerCertSANs:
         - "${HOST}"
         extraArgs:
-          initial-cluster: ${NAMES[0]}=https://${HOSTS[0]}:${PORTS2[0]},${NAMES[1]}=https://${HOSTS[1]}:${PORTS2[1]},${NAMES[2]}=https://${HOSTS[2]}:${PORTS2[2]}
+          initial-cluster: ${INITIAL_CLUSTER}
           initial-cluster-state: new
           name: ${NAME}
           listen-peer-urls: https://${HOST}:${PORT2}
@@ -66,7 +89,7 @@ for i in "${!HOSTS[@]}"; do
 	kubeadm init phase certs apiserver-etcd-client --config=./etcd/${NAME}/kubeadmcfg.yaml
 
 	# deploy etcd on one node
-	[ "$HOST0" == "$HOST1" ] && break
+	[ "$HOST0" == "$HOST1" -o "$HOST1" == "" ] && break
 
 	# backup certs for etcd node
 	cp -fr /etc/kubernetes/pki ./etcd/${NAME}/
@@ -86,7 +109,9 @@ for i in "${!HOSTS[@]}"; do
 	sed -i -r "s#:2381\b#:${PORT3}#g" /etc/kubernetes/manifests/etcd.yaml
 
 	# deploy etcd on one node
-	if  [ "$HOST0" == "$HOST1" ]; then
+	if  [ "$HOST1" == "" ]; then
+		break
+	elif  [ "$HOST0" == "$HOST1" ]; then
 		sed -i "s#^  name: etcd#  name: etcd${i}#g" /etc/kubernetes/manifests/etcd.yaml
 		sed -i "s#path: /var/lib/etcd#path: /var/lib/etcd${i}#g" /etc/kubernetes/manifests/etcd.yaml
 		
@@ -101,6 +126,7 @@ done
 
 # setup kubelet to work in standalone mode for bringing up local etcd for each node
 cat > /var/lib/kubelet/standalone.yaml <<EOF
+# https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
 authentication:
@@ -110,17 +136,23 @@ authentication:
     enabled: false
 authorization:
   mode: AlwaysAllow
-cgroupDriver: systemd
 address: 127.0.0.1
-containerRuntimeEndpoint: unix:///var/run/cri-dockerd.sock
+cgroupDriver: systemd
+#containerRuntimeEndpoint: ${CTR_RUNTIME}
 staticPodPath: /etc/kubernetes/manifests
 EOF
+
+CTR_RUNTIME_FLAG=""
+if [ "${CTR_TYPE}" == "docker" ]; then
+	CTR_RUNTIME_FLAG="--container-runtime=${CTR_TYPE}"
+fi
+KUBELET_EXTRA_FLAGS="${CTR_RUNTIME_FLAG} --container-runtime-endpoint=${CTR_RUNTIME} --pod-infra-container-image=registry.local/pause:3.9"
 
 mkdir -p /etc/systemd/system/kubelet.service.d
 cat > /etc/systemd/system/kubelet.service.d/20-standalone.conf <<EOF
 [Service]
 ExecStart=
-ExecStart=/usr/bin/kubelet --config=/var/lib/kubelet/standalone.yaml --register-node=false --pod-infra-container-image=registry.local/pause:3.9
+ExecStart=/usr/bin/kubelet --config=/var/lib/kubelet/standalone.yaml --register-node=false $KUBELET_EXTRA_FLAGS
 Restart=always
 EOF
 
@@ -128,8 +160,8 @@ systemctl daemon-reload && systemctl restart kubelet
 
 # wait for etcd to be ready
 while :; do
-	ETCD_ID=$(crictl ps --name etcd -q | head -1)
-	status=$(crictl exec "$ETCD_ID" etcdctl --cert /etc/kubernetes/pki/etcd/peer.crt --key /etc/kubernetes/pki/etcd/peer.key \
+	ETCD_ID=$(crictl -r "$CTR_RUNTIME" ps --name etcd -q | head -1)
+	status=$(crictl -r "$CTR_RUNTIME" exec "$ETCD_ID" etcdctl --cert /etc/kubernetes/pki/etcd/peer.crt --key /etc/kubernetes/pki/etcd/peer.key \
 		--cacert /etc/kubernetes/pki/etcd/ca.crt --endpoints https://${HOST0}:2379 endpoint health || true)
 	if echo "$status" | grep -q "is healthy"; then
 		echo "etcd is ready!"
@@ -141,4 +173,6 @@ while :; do
 done
 
 rm -fr ./etcd
+
+echo "[Step $(basename $0 | grep -Eo '^[0-9]+')] etcd installed or configured successfully!"
 
