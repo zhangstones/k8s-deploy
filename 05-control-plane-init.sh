@@ -10,28 +10,28 @@ export ETCD_HOST1=${2:-${ETCD_NODE02}}
 export ETCD_HOST2=${3:-${ETCD_NODE03}}
 
 if [ "$ETCD_HOST0" == "" -a $# -lt 1 ]; then
-        echo "Usage: $0 [etcd-host01] [etcd-host02] [etcd-host03]"
-        exit 1
+	echo "Usage: $0 [etcd-host01] [etcd-host02] [etcd-host03]"
+	exit 1
 fi
 
 ETCD_HOSTS=(${ETCD_HOST0} ${ETCD_HOST1} ${ETCD_HOST2})
 if  [ "$HOST0" == "$HOST1" ]; then
-        ETCD_PORTS=(2379 2479 2579)
+	ETCD_PORTS=(2379 2479 2579)
 else
-        ETCD_PORTS=(2379 2379 2379)
+	ETCD_PORTS=(2379 2379 2379)
 fi
 
 ETCD_ENDPOINTS=""
 for i in "${!ETCD_HOSTS[@]}"; do
-        HOST=${ETCD_HOSTS[$i]}
-        PORT=${ETCD_PORTS[$i]}
-        ETCD_ENDPOINTS="${ETCD_ENDPOINTS},https://${HOST}:${PORT}"
+	HOST=${ETCD_HOSTS[$i]}
+	PORT=${ETCD_PORTS[$i]}
+	ETCD_ENDPOINTS="${ETCD_ENDPOINTS},https://${HOST}:${PORT}"
 done
 ETCD_ENDPOINTS=${ETCD_ENDPOINTS#,}
 
 CTR_RUNTIME_FLAG=""
 if [ "${CTR_TYPE}" == "docker" ]; then
-        CTR_RUNTIME_FLAG="container-runtime: ${CTR_TYPE}"
+	CTR_RUNTIME_FLAG="container-runtime: ${CTR_TYPE}"
 fi
 
 # generate kubeadm config for initing

@@ -15,9 +15,9 @@ systemctl disable --now firewalld
 swapoff -a
 sed -i '/ swap /d' /etc/fstab
 
-# CAUTION: need to set http proxy for yum
+# CAUTION: need to set k8s repo for yum
 K8S_REPO_VER="v${K8S_VER%.*}"
-cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+cat <<EOF > /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
 name=Kubernetes
 baseurl=https://pkgs.k8s.io/core:/stable:/${K8S_REPO_VER}/rpm/

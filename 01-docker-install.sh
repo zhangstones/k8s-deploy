@@ -50,7 +50,7 @@ install -v cri-dockerd-0.3.15/packaging/systemd/cri-docker.service /etc/systemd/
 install -v cri-dockerd-0.3.15/packaging/systemd/cri-docker.socket /etc/systemd/system
 
 if ! grep -q "pod-infra-container-image" /etc/systemd/system/cri-docker.service; then
-        sed -i -r 's#ExecStart=(.*)#ExecStart=\1 --pod-infra-container-image=registry.local/pause:3.9#' /etc/systemd/system/cri-docker.service
+	sed -i -r 's#ExecStart=(.*)#ExecStart=\1 --pod-infra-container-image=registry.local/pause:3.9#' /etc/systemd/system/cri-docker.service
 fi
 
 systemctl daemon-reload

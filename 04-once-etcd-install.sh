@@ -22,19 +22,19 @@ HOSTS=(${HOST0} ${HOST1} ${HOST2})
 NAMES=(${NAME0} ${NAME1} ${NAME2})
 
 if  [ "$HOST0" == "$HOST1" ]; then
-        PORTS1=(2379 2479 2579)
-        PORTS2=(2380 2480 2580)
-        PORTS3=(2381 2481 2581)
+	PORTS1=(2379 2479 2579)
+	PORTS2=(2380 2480 2580)
+	PORTS3=(2381 2481 2581)
 else 
-        PORTS1=(2379 2379 2379)
-        PORTS2=(2380 2380 2380)
-        PORTS3=(2381 2381 2381)
+	PORTS1=(2379 2379 2379)
+	PORTS2=(2380 2380 2380)
+	PORTS3=(2381 2381 2381)
 fi
 
 INITIAL_CLUSTER=""
 for i in "${!HOSTS[@]}"; do
-        HOST=${HOSTS[$i]}
-        NAME=${NAMES[$i]}
+	HOST=${HOSTS[$i]}
+	NAME=${NAMES[$i]}
 	PORT2=${PORTS2[$i]}
 	INITIAL_CLUSTER="${INITIAL_CLUSTER},${NAME}=https://${HOST}:${PORT2}"
 done
@@ -50,6 +50,7 @@ for i in "${!HOSTS[@]}"; do
 
 cat << EOF > ./etcd/${NAME}/kubeadmcfg.yaml
 ---
+# https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-InitConfiguration
 apiVersion: "kubeadm.k8s.io/v1beta3"
 kind: InitConfiguration
 nodeRegistration:
@@ -58,6 +59,7 @@ nodeRegistration:
 localAPIEndpoint:
     advertiseAddress: ${HOST}
 ---
+# https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-ClusterConfiguration
 apiVersion: "kubeadm.k8s.io/v1beta3"
 kind: ClusterConfiguration
 etcd:

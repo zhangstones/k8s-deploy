@@ -19,7 +19,7 @@ KEY=$(cat kubeadm-result.log | awk '/--certificate-key/{print $3; exit}')
 
 CONTROL_PLANE=""
 if [ "$ROLE" == "master" ]; then
-        CONTROL_PLANE="
+	CONTROL_PLANE="
 controlPlane:
   certificateKey: $KEY
 "
@@ -32,7 +32,7 @@ fi
 
 CTR_RUNTIME_FLAG=""
 if [ "${CTR_TYPE}" == "docker" ]; then
-        CTR_RUNTIME_FLAG="container-runtime: ${CTR_TYPE}"
+	CTR_RUNTIME_FLAG="container-runtime: ${CTR_TYPE}"
 fi
 
 # generate kubeadm config for initing

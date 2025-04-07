@@ -6,10 +6,13 @@ set -e
 
 # CAUTION: need to setup https_proxy for docker and support insecure-registries
 
-kubeadm config images list > images-list.txt
+kubeadm config images list --kubernetes-version=$K8S_VER > images-list.txt
 
 # pull and push k8s images to local docker registry for future use
 kubeadm config images pull --kubernetes-version=$K8S_VER --cri-socket "$CTR_RUNTIME"
+
+docker pull registry.k8s.io/pause:3.9
+echo  registry.k8s.io/pause:3.9 >> images-list.txt
 
 while read tag; do
 	new_tag=${tag/\/coredns/}
